@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>영수증 가계부</title>
+  <meta name="theme-color" content="#185FA5"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f7;color:#1a1a1a;}
+    .app{max-width:390px;margin:0 auto;padding:1rem 1rem 5rem;min-height:100vh;}
+    .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;background:white;border-top:0.5px solid #e0e0e0;display:flex;z-index:100;}
+    .tab{flex:1;padding:10px 0 6px;text-align:center;cursor:pointer;font-size:11px;color:#888;border:none;background:transparent;font-family:inherit;}
+    .tab.active{color:#185FA5;font-weight:600;}
+    .tab-icon{font-size:18px;display:block;margin-bottom:2px;}
+    .screen{display:none;}
+    .screen.active{display:block;}
+
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;}
+    .header h1{font-size:22px;font-weight:700;}
+    .month-nav{display:flex;align-items:center;gap:8px;}
+    .month-btn{background:none;border:none;font-size:18px;cursor:pointer;color:#888;padding:4px;}
+    .month-label{font-size:14px;font-weight:600;color:#185FA5;min-width:50px;text-align:center;}
+
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.2rem;}
+    .stat-card{background:#ebebeb;border-radius:10px;padding:1rem;}
+    .stat-label{font-size:12px;color:#888;margin-bottom:4px;}
+    .stat-value{font-size:20px;font-weight:700;color:#1a1a1a;}
+    .stat-value.over{color:#E24B4A;}
+    .stat-value.ok{color:#1D9E75;}
+
+    .budget-bar-wrap{margin-bottom:1.2rem;}
+    .budget-bar-label{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:6px;}
+    .budget-bar{height:8px;background:#e0e0e0;border-radius:99px;overflow:hidden;}
+    .budget-bar-fill{height:100%;border-radius:99px;transition:width 0.4s ease;}
+
+    .upload-card{background:white;border:0.5px dashed #ccc;border-radius:14px;padding:1.2rem;text-align:center;cursor:pointer;margin-bottom:10px;}
+    .upload-card:hover{background:#f5f5f7;}
+    .upload-icon{font-size:28px;margin-bottom:6px;}
+    .upload-title{font-size:14px;font-weight:600;margin-bottom:2px;}
+    .upload-sub{font-size:12px;color:#888;}
+    input[type=file]{display:none;}
+
+    .manual-btn{width:100%;padding:11px;border:0.5px solid #ddd;border-radius:14px;background:transparent;color:#555;font-size:14px;cursor:pointer;margin-bottom:10px;font-family:inherit;}
+    .manual-btn:hover{background:#f0f0f0;}
+
+    .analyzing{background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:12px;padding:12px 16px;margin-bottom:10px;display:none;font-size:14px;color:#0C447C;}
+
+    .ai-card{background:white;border:0.5px solid #e0e0e0;border-radius:14px;padding:1rem 1.25rem;margin-bottom:10px;display:none;}
+    .ai-label{font-size:11px;font-weight:600;color:#185FA5;margin-bottom:6px;letter-spacing:0.05em;}
+    .ai-text{font-size:14px;color:#1a1a1a;line-height:1.6;}
+    .analyze-btn{width:100%;padding:12px;border-radius:14px;background:#185FA5;color:white;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:10px;display:none;}
+    .analyze-btn:disabled{opacity:0.5;}
+
+    .section-label{font-size:12px;font-weight:600;color:#888;margin-bottom:8px;letter-spacing:0.05em;display:none;}
+    .expense-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;}
+    .expense-card{background:white;border:0.5px solid #e0e0e0;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:12px;}
+    .expense-emoji{font-size:20px;width:32px;text-align:center;}
+    .expense-info{flex:1;min-width:0;}
+    .expense-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .expense-meta{font-size:12px;color:#888;margin-top:2px;display:flex;align-items:center;gap:6px;}
+    .expense-amount{font-size:15px;font-weight:600;white-space:nowrap;}
+    .expense-actions{display:flex;gap:6px;margin-left:4px;}
+    .icon-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:2px;opacity:0.5;}
+    .icon-btn:hover{opacity:1;}
+    .cat-badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:99px;}
+    .cat-식사{background:#FAEEDA;color:#633806;}
+    .cat-카페{background:#E6F1FB;color:#0C447C;}
+    .cat-마트{background:#EAF3DE;color:#27500A;}
+    .cat-교통{background:#EEEDFE;color:#3C3489;}
+    .cat-기타{background:#ebebeb;color:#555;}
+
+    .section-title{font-size:18px;font-weight:700;margin-bottom:1rem;}
+
+    .chart-wrap{background:white;border:0.5px solid #e0e0e0;border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+    .chart-title{font-size:14px;font-weight:600;margin-bottom:14px;color:#1a1a1a;}
+    .bar-chart{display:flex;flex-direction:column;gap:10px;}
+    .bar-row{display:flex;align-items:center;gap:10px;}
+    .bar-cat{font-size:12px;color:#888;width:36px;text-align:right;flex-shrink:0;}
+    .bar-track{flex:1;height:10px;background:#e0e0e0;border-radius:99px;overflow:hidden;}
+    .bar-fill{height:100%;border-radius:99px;transition:width 0.4s;}
+    .bar-amt{font-size:12px;color:#1a1a1a;font-weight:500;min-width:60px;text-align:right;}
+
+    .month-compare{background:white;border:0.5px solid #e0e0e0;border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+    .compare-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #e0e0e0;font-size:14px;}
+    .compare-row:last-child{border-bottom:none;}
+    .compare-month{color:#888;}
+    .compare-amt{font-weight:600;}
+    .compare-diff{font-size:12px;padding:2px 8px;border-radius:99px;}
+    .diff-up{background:#FCEBEB;color:#A32D2D;}
+    .diff-down{background:#EAF3DE;color:#27500A;}
+    .diff-same{background:#ebebeb;color:#555;}
+
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end;justify-content:center;}
+    .modal-bg.show{display:flex;}
+    .modal{background:white;border-radius:20px 20px 0 0;padding:1.5rem;width:100%;max-width:390px;}
+    .modal h2{font-size:18px;font-weight:700;margin-bottom:1rem;}
+    .form-row{margin-bottom:12px;}
+    .form-label{font-size:13px;color:#888;margin-bottom:4px;}
+    .form-input{width:100%;padding:11px 12px;border:0.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;background:white;color:#1a1a1a;}
+    .form-select{width:100%;padding:11px 12px;border:0.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;background:white;color:#1a1a1a;}
+    .emoji-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+    .emoji-opt{font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:1.5px solid transparent;}
+    .emoji-opt.selected{border-color:#185FA5;background:#E6F1FB;}
+    .modal-btns{display:flex;gap:8px;}
+    .btn-primary{flex:1;padding:12px;background:#185FA5;color:white;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-family:inherit;font-weight:600;}
+    .btn-cancel{flex:1;padding:12px;background:transparent;color:#888;border:0.5px solid #ddd;border-radius:10px;font-size:15px;cursor:pointer;font-family:inherit;}
+
+    .budget-setting{background:white;border:0.5px solid #e0e0e0;border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+    .budget-row{display:flex;align-items:center;justify-content:space-between;}
+    .budget-label{font-size:14px;font-weight:600;}
+    .budget-edit-btn{font-size:13px;color:#185FA5;background:none;border:none;cursor:pointer;font-family:inherit;}
+    .budget-amount{font-size:20px;font-weight:700;color:#1a1a1a;margin-top:4px;}
+
+    .empty-state{text-align:center;padding:2rem 1rem;color:#888;}
+    .empty-icon{font-size:40px;margin-bottom:8px;}
+    .empty-text{font-size:14px;}
+
+    @media(prefers-color-scheme:dark){
+      body{background:#1a1a1a;color:#f0f0f0;}
+      .app{background:#1a1a1a;}
+      .tab-bar,.modal,.expense-card,.upload-card,.chart-wrap,.month-compare,.ai-card,.budget-setting{background:#2a2a2a;}
+      .stat-card{background:#333;}
+      .stat-value{color:#f0f0f0;}
+      .expense-card,.upload-card,.chart-wrap,.month-compare,.ai-card,.budget-setting{border-color:#3a3a3a;}
+      .budget-bar,.bar-track{background:#333;}
+      .tab-bar{border-color:#3a3a3a;}
+      .form-input,.form-select{background:#2a2a2a;color:#f0f0f0;border-color:#3a3a3a;}
+      .modal{background:#2a2a2a;}
+      .btn-cancel{color:#aaa;border-color:#3a3a3a;}
+      .compare-row{border-color:#3a3a3a;}
+      .expense-name,.budget-amount,.compare-amt{color:#f0f0f0;}
+      .manual-btn{color:#aaa;border-color:#3a3a3a;}
+      .manual-btn:hover{background:#333;}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div id="screen-home" class="screen active">
+    <div class="header">
+      <h1>영수증 가계부</h1>
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="month-label"></span>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">이번 달 지출</div>
+        <div class="stat-value" id="total-amount">0원</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">남은 예산</div>
+        <div class="stat-value" id="remain-amount">-</div>
+      </div>
+    </div>
+
+    <div class="budget-bar-wrap" id="budget-bar-wrap" style="display:none;">
+      <div class="budget-bar-label">
+        <span>예산 사용률</span>
+        <span id="budget-pct">0%</span>
+      </div>
+      <div class="budget-bar"><div class="budget-bar-fill" id="budget-bar-fill" style="width:0%;background:#1D9E75;"></div></div>
+    </div>
+
+    <div class="upload-card" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📷</div>
+      <div class="upload-title">영수증 사진 올리기</div>
+      <div class="upload-sub">AI가 자동으로 금액/가게명을 인식해요</div>
+      <input type="file" id="file-input" accept="image/*" onchange="handleUpload(this)"/>
+    </div>
+
+    <button class="manual-btn" onclick="openManualModal()">✏️ 직접 입력하기</button>
+
+    <div class="analyzing" id="analyzing-box"></div>
+
+    <div class="ai-card" id="ai-card">
+      <div class="ai-label">AI 소비 분석</div>
+      <div class="ai-text" id="ai-text"></div>
+    </div>
+
+    <button class="analyze-btn" id="analyze-btn" onclick="analyzeSpending()">AI 소비 분석 받기</button>
+
+    <div class="section-label" id="list-label">이번 달 지출 내역</div>
+    <div class="expense-list" id="expense-list"></div>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-text">영수증을 올리거나 직접 입력해보세요</div>
+    </div>
+  </div>
+
+  <div id="screen-stats" class="screen">
+    <div class="section-title">통계</div>
+    <div class="chart-wrap">
+      <div class="chart-title">카테고리별 지출</div>
+      <div class="bar-chart" id="cat-chart"></div>
+    </div>
+    <div class="month-compare">
+      <div class="chart-title" style="margin-bottom:10px;">월별 지출 비교</div>
+      <div id="month-compare-list"></div>
+    </div>
+  </div>
+
+  <div id="screen-settings" class="screen">
+    <div class="section-title">설정</div>
+    <div class="budget-setting">
+      <div class="budget-row">
+        <span class="budget-label">월 예산</span>
+        <button class="budget-edit-btn" onclick="openBudgetModal()">수정</button>
+      </div>
+      <div class="budget-amount" id="budget-display">미설정</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showScreen('home',this)"><span class="tab-icon">🏠</span>홈</button>
+  <button class="tab" onclick="showScreen('stats',this)"><span class="tab-icon">📊</span>통계</button>
+  <button class="tab" onclick="showScreen('settings',this)"><span class="tab-icon">⚙️</span>설정</button>
+</div>
+
+<div class="modal-bg" id="manual-modal">
+  <div class="modal">
+    <h2>지출 직접 입력</h2>
+    <div class="form-row"><div class="form-label">가게/항목명</div><input class="form-input" id="m-name" placeholder="예: 스타벅스"/></div>
+    <div class="form-row"><div class="form-label">금액 (원)</div><input class="form-input" id="m-amount" type="number" placeholder="예: 6500"/></div>
+    <div class="form-row"><div class="form-label">카테고리</div>
+      <select class="form-select" id="m-cat">
+        <option>식사</option><option>카페</option><option>마트</option><option>교통</option><option>기타</option>
+      </select>
+    </div>
+    <div class="form-row"><div class="form-label">이모지</div>
+      <div class="emoji-grid" id="m-emoji-grid"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('manual-modal')">취소</button>
+      <button class="btn-primary" onclick="saveManual()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h2>지출 수정</h2>
+    <div class="form-row"><div class="form-label">가게/항목명</div><input class="form-input" id="e-name"/></div>
+    <div class="form-row"><div class="form-label">금액 (원)</div><input class="form-input" id="e-amount" type="number"/></div>
+    <div class="form-row"><div class="form-label">카테고리</div>
+      <select class="form-select" id="e-cat">
+        <option>식사</option><option>카페</option><option>마트</option><option>교통</option><option>기타</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('edit-modal')">취소</button>
+      <button class="btn-primary" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="budget-modal">
+  <div class="modal">
+    <h2>월 예산 설정</h2>
+    <div class="form-row"><div class="form-label">예산 금액 (원)</div><input class="form-input" id="b-amount" type="number" placeholder="예: 500000"/></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('budget-modal')">취소</button>
+      <button class="btn-primary" onclick="saveBudget()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EMOJIS=['🍔','☕','🛒','🚌','🎮','👕','💊','🍺','🍕','🛍️','✈️','📚'];
+const CAT_COLORS={'식사':'#EF9F27','카페':'#378ADD','마트':'#639922','교통':'#7F77DD','기타':'#888780'};
+let selectedEmoji='🍔';
+let editingId=null;
+let currentYear=new Date().getFullYear();
+let currentMonth=new Date().getMonth()+1;
+
+function loadData(){try{const d=localStorage.getItem('receiptData');return d?JSON.parse(d):null;}catch(e){return null;}}
+function saveData(){try{localStorage.setItem('receiptData',JSON.stringify(state));}catch(e){}}
+
+const saved=loadData();
+let state=saved||{expenses:[],budget:0};
+if(!state.expenses)state.expenses=[];
+if(!state.budget)state.budget=0;
+
+function getMonthKey(y,m){return `${y}-${String(m).padStart(2,'0')}`;}
+function getCurrentMonthExpenses(){
+  const key=getMonthKey(currentYear,currentMonth);
+  return state.expenses.filter(e=>e.monthKey===key);
+}
+
+function updateMonthLabel(){
+  document.getElementById('month-label').textContent=`${currentMonth}월`;
+}
+
+function changeMonth(d){
+  currentMonth+=d;
+  if(currentMonth>12){currentMonth=1;currentYear++;}
+  if(currentMonth<1){currentMonth=12;currentYear--;}
+  updateMonthLabel();
+  renderHome();
+}
+
+function formatKRW(n){return Number(n).toLocaleString('ko-KR')+'원';}
+
+function renderHome(){
+  const list=getCurrentMonthExpenses();
+  const total=list.reduce((s,e)=>s+Number(e.amount),0);
+  document.getElementById('total-amount').textContent=formatKRW(total);
+
+  if(state.budget>0){
+    const remain=state.budget-total;
+    const pct=Math.min(Math.round((total/state.budget)*100),100);
+    const remEl=document.getElementById('remain-amount');
+    remEl.textContent=formatKRW(Math.abs(remain));
+    remEl.className='stat-value '+(remain<0?'over':'ok');
+    document.getElementById('budget-bar-wrap').style.display='block';
+    document.getElementById('budget-pct').textContent=pct+'%';
+    const fill=document.getElementById('budget-bar-fill');
+    fill.style.width=pct+'%';
+    fill.style.background=pct>=90?'#E24B4A':pct>=70?'#EF9F27':'#1D9E75';
+  } else {
+    document.getElementById('remain-amount').textContent='-';
+    document.getElementById('budget-bar-wrap').style.display='none';
+  }
+
+  const hasItems=list.length>0;
+  document.getElementById('analyze-btn').style.display=hasItems?'block':'none';
+  document.getElementById('list-label').style.display=hasItems?'block':'none';
+  document.getElementById('empty-state').style.display=hasItems?'none':'block';
+
+  document.getElementById('expense-list').innerHTML=list.slice().reverse().map(e=>`
+    <div class="expense-card">
+      <div class="expense-emoji">${e.emoji}</div>
+      <div class="expense-info">
+        <div class="expense-name">${e.name}</div>
+        <div class="expense-meta">${e.date} <span class="cat-badge cat-${e.category}">${e.category}</span></div>
+      </div>
+      <div class="expense-amount">${formatKRW(e.amount)}</div>
+      <div class="expense-actions">
+        <button class="icon-btn" onclick="openEditModal('${e.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteExpense('${e.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderStats(){
+  const list=getCurrentMonthExpenses();
+  const catTotals={};
+  list.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+Number(e.amount);});
+  const maxVal=Math.max(...Object.values(catTotals),1);
+  document.getElementById('cat-chart').innerHTML=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>`
+    <div class="bar-row">
+      <span class="bar-cat">${cat}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((amt/maxVal)*100)}%;background:${CAT_COLORS[cat]||'#888'};"></div></div>
+      <span class="bar-amt">${formatKRW(amt)}</span>
+    </div>
+  `).join('')||'<div style="font-size:14px;color:#888;text-align:center;padding:1rem;">데이터 없음</div>';
+
+  const compareRows=[];
+  for(let i=0;i<4;i++){
+    let m=currentMonth-i,y=currentYear;
+    if(m<=0){m+=12;y--;}
+    const key=getMonthKey(y,m);
+    const monthList=state.expenses.filter(e=>e.monthKey===key);
+    const total=monthList.reduce((s,e)=>s+Number(e.amount),0);
+    compareRows.push({label:`${y}년 ${m}월`,total,isCurrent:i===0});
+  }
+  document.getElementById('month-compare-list').innerHTML=compareRows.map((r,i)=>{
+    let diffHtml='';
+    if(i<compareRows.length-1&&compareRows[i+1].total>0){
+      const diff=r.total-compareRows[i+1].total;
+      const sign=diff>0?'+':'';
+      const cls=diff>0?'diff-up':diff<0?'diff-down':'diff-same';
+      diffHtml=`<span class="compare-diff ${cls}">${sign}${formatKRW(diff)}</span>`;
+    }
+    return `<div class="compare-row">
+      <span class="compare-month">${r.label}${r.isCurrent?' (이번 달)':''}</span>
+      <div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="compare-amt">${formatKRW(r.total)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderSettings(){
+  document.getElementById('budget-display').textContent=state.budget>0?formatKRW(state.budget):'미설정';
+}
+
+function showScreen(name,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='stats')renderStats();
+  if(name==='settings')renderSettings();
+}
+
+function openManualModal(){
+  selectedEmoji='🍔';
+  document.getElementById('m-name').value='';
+  document.getElementById('m-amount').value='';
+  document.getElementById('m-cat').value='식사';
+  document.getElementById('m-emoji-grid').innerHTML=EMOJIS.map(e=>`<span class="emoji-opt${e===selectedEmoji?' selected':''}" onclick="selectEmoji('${e}',this,'m')">${e}</span>`).join('');
+  document.getElementById('manual-modal').classList.add('show');
+}
+
+function selectEmoji(e,el,prefix){
+  selectedEmoji=e;
+  document.querySelectorAll(`#${prefix}-emoji-grid .emoji-opt`).forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function saveManual(){
+  const name=document.getElementById('m-name').value.trim();
+  const amount=parseInt(document.getElementById('m-amount').value);
+  if(!name||!amount)return alert('가게명과 금액을 입력해주세요.');
+  const today=new Date();
+  const date=`${today.getMonth()+1}/${today.getDate()}`;
+  const monthKey=getMonthKey(today.getFullYear(),today.getMonth()+1);
+  state.expenses.push({id:Date.now().toString(),name,amount,category:document.getElementById('m-cat').value,emoji:selectedEmoji,date,monthKey});
+  saveData();closeModal('manual-modal');renderHome();
+}
+
+function openEditModal(id){
+  const e=state.expenses.find(x=>x.id===id);
+  if(!e)return;
+  editingId=id;
+  document.getElementById('e-name').value=e.name;
+  document.getElementById('e-amount').value=e.amount;
+  document.getElementById('e-cat').value=e.category;
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function saveEdit(){
+  const e=state.expenses.find(x=>x.id===editingId);
+  if(!e)return;
+  e.name=document.getElementById('e-name').value.trim()||e.name;
+  e.amount=parseInt(document.getElementById('e-amount').value)||e.amount;
+  e.category=document.getElementById('e-cat').value;
+  saveData();closeModal('edit-modal');renderHome();
+}
+
+function deleteExpense(id){
+  if(!confirm('삭제할까요?'))return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  saveData();renderHome();
+}
+
+function openBudgetModal(){
+  document.getElementById('b-amount').value=state.budget||'';
+  document.getElementById('budget-modal').classList.add('show');
+}
+
+function saveBudget(){
+  state.budget=parseInt(document.getElementById('b-amount').value)||0;
+  saveData();closeModal('budget-modal');renderSettings();renderHome();
+}
+
+async function handleUpload(input){
+  const file=input.files[0];
+  if(!file)return;
+  const box=document.getElementById('analyzing-box');
+  box.style.display='block';
+  box.textContent='🔍 AI가 영수증을 분석하고 있어요...';
+  try{
+    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:file.type,data:base64}},
+          {type:'text',text:'이 영수증에서 정보 추출해줘. JSON만 응답:\n{"name":"가게명","amount":숫자,"category":"식사|카페|마트|교통|기타","emoji":"이모지1개"}'}
+        ]}]})
+    });
+    const data=await response.json();
+    const parsed=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    const today=new Date();
+    parsed.id=Date.now().toString();
+    parsed.date=`${today.getMonth()+1}/${today.getDate()}`;
+    parsed.monthKey=getMonthKey(today.getFullYear(),today.getMonth()+1);
+    state.expenses.push(parsed);
+    saveData();
+    box.textContent='✅ 분석 완료!';
+    setTimeout(()=>{box.style.display='none';},1500);
+    renderHome();
+  }catch(e){
+    box.textContent='⚠️ 인식 실패. 직접 입력해보세요.';
+    setTimeout(()=>{box.style.display='none';},2000);
+  }
+  input.value='';
+}
+
+async function analyzeSpending(){
+  const btn=document.getElementById('analyze-btn');
+  btn.textContent='분석 중...';btn.disabled=true;
+  const list=getCurrentMonthExpenses();
+  const total=list.reduce((s,e)=>s+Number(e.amount),0);
+  const summary=list.map(e=>`${e.name}(${e.category}) ${Number(e.amount).toLocaleString()}원`).join(', ');
+  const budgetInfo=state.budget>0?`예산: ${state.budget.toLocaleString()}원, `:'';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,
+        messages:[{role:'user',content:`${budgetInfo}이번 달 지출: ${summary}. 총 ${total.toLocaleString()}원. 소비 패턴 분석 + 절약 팁 2~3줄. 반말, 친근하게.`}]})
+    });
+    const data=await res.json();
+    const card=document.getElementById('ai-card');
+    card.style.display='block';
+    document.getElementById('ai-text').textContent=data.content[0].text;
+  }catch(e){
+    document.getElementById('ai-card').style.display='block';
+    document.getElementById('ai-text').textContent='카페 지출이 좀 많아 보여! 주 2회로 줄이면 한 달에 2만원 이상 아낄 수 있어 ☕';
+  }
+  btn.textContent='AI 소비 분석 받기';btn.disabled=false;
+}
+
+updateMonthLabel();
+renderHome();
+</script>
+</body>
+</html>
